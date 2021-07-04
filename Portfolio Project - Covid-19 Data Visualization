@@ -1,0 +1,118 @@
+
+Select *
+From Portfolio..['Covid deaths$']
+--Where continent is null then it is refering to a whole continent 
+where continent is not null
+order by 3,4
+
+
+--Select *
+--From Portfolio..['Covid vac$']
+--order by 3,4
+
+
+Select location, date, total_cases, new_cases, total_deaths, population
+From Portfolio..['Covid deaths$']
+where continent is not null
+Order by 1,2
+
+-- Total Cases vs Total Deaths (% of dying if you get covid in your country)
+
+Select location, date, total_cases, total_deaths, (total_deaths/total_cases)*100 as DeathPercent
+From Portfolio..['Covid deaths$']
+where continent is not null
+Order by 1,2
+
+-- Total cases vs Population (% of population that got covid)
+
+Select location, date, total_cases, population, (total_cases/population)*100 as InfectionPercent
+From Portfolio..['Covid deaths$']
+where continent is not null
+Order by 1,2
+
+-- Countries with highest infection rate compared to population
+
+Select location, population, MAX(total_cases) as HighestinfecctionCount, MAX((total_cases/population))*100 as Infectionpercent
+From Portfolio..['Covid deaths$']
+where continent is not null
+Group by location, population
+Order by Infectionpercent desc
+
+-- Countries with highest death count compared to population -> Continent
+
+Select location, MAX(cast(total_deaths as int)) as Totaldeaths
+From Portfolio..['Covid deaths$']
+where continent is not null
+Group by location
+Order by Totaldeaths desc
+
+
+Select continent, MAX(cast(total_deaths as int)) as Totaldeathcount
+From Portfolio..['Covid deaths$']
+Where continent is not null
+Group by continent
+Order by Totaldeathcount desc
+
+--Global stats
+
+Select date, SUM(new_cases) as total_cases, Sum(cast(new_deaths as int)) as total_deaths, SUM(cast(new_deaths as int))/SUM(new_cases)*100 as DeathPercent
+From Portfolio..['Covid deaths$']
+Where continent is not null
+-- If next line is commented out then we will have the total number overall
+Group by date
+Order by 1,2
+
+-- Total popultaion vs Vaccinations
+-- We are joining both tables by the location which can be found in both of the files
+-- Since we have columns with the same name in both files we then have to specify which one we are taking the information by
+
+Select dea.continent, dea.location, dea.date, dea.population, vac.new_vaccinations, SUM(Convert(int, vac.new_vaccinations)) OVER (Partition by dea.location Order by dea.location, dea.date) as RollingPeopleVaccinated
+From Portfolio..['Covid deaths$'] dea
+Join Portfolio..['Covid vac$'] vac
+	On dea.location = vac.location
+	and dea.date = vac.date
+where dea.continent is not null
+order by 2,3
+
+
+--CTE impelentation
+
+With PopvsVac (continent, location, date, population, new_vaccinations, RollingPeopleVaccinated)
+as
+(
+Select dea.continent, dea.location, dea.date, dea.population, vac.new_vaccinations, SUM(cast(vac.new_vaccinations as int)) OVER (Partition by dea.location Order by dea.date, dea.location) as RollingPeopleVaccinated
+From Portfolio..['Covid deaths$'] dea
+Join Portfolio..['Covid vac$'] vac
+	On dea.location = vac.location
+	and dea.date = vac.date
+where dea.continent is not null
+)
+Select *, (RollingPeopleVaccinated/population)*100 as PopvsVac
+From PopvsVac
+
+-- Temp Table
+
+DROP Table if exists #PercentPopulationVaccinated
+Create Table #PercentPopulationVaccinated
+(
+Continent nvarchar(255),
+Location nvarchar(255),
+Date datetime,
+Population numeric,
+New_vaccinations numeric,
+RollingPeopleVaccinated numeric
+)
+
+Insert into #PercentPopulationVaccinated
+Select dea.continent, dea.location, dea.date, dea.population, vac.new_vaccinations
+, SUM(CONVERT(int,vac.new_vaccinations)) OVER (Partition by dea.Location Order by dea.location, dea.Date) as RollingPeopleVaccinated
+--, (RollingPeopleVaccinated/population)*100
+From Portfolio..['Covid deaths$'] dea
+Join Portfolio..['Covid vac$'] vac
+	On dea.location = vac.location
+	and dea.date = vac.date
+where dea.continent is not null 
+--order by 2,3
+
+Select *, (RollingPeopleVaccinated/Population)*100
+From #PercentPopulationVaccinated
