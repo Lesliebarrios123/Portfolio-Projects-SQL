@@ -1,7 +1,7 @@
 
 Select *
 From Portfolio..['Covid deaths$']
---Where continent is null then it is refering to a whole continent 
+--Where continent is null then it is referring to the continent as a whole 
 where continent is not null
 order by 3,4
 
@@ -62,9 +62,10 @@ Where continent is not null
 Group by date
 Order by 1,2
 
--- Total popultaion vs Vaccinations
+-- Total population vs Vaccinations
 -- We are joining both tables by the location which can be found in both of the files
--- Since we have columns with the same name in both files we then have to specify which one we are taking the information by
+-- Since we have columns with the same name in both files, we then have to specify which one we are taking the information by
+
 
 Select dea.continent, dea.location, dea.date, dea.population, vac.new_vaccinations, SUM(Convert(int, vac.new_vaccinations)) OVER (Partition by dea.location Order by dea.location, dea.date) as RollingPeopleVaccinated
 From Portfolio..['Covid deaths$'] dea
@@ -75,7 +76,7 @@ where dea.continent is not null
 order by 2,3
 
 
---CTE impelentation
+--CTE (Commmon Table Expression) impelentation
 
 With PopvsVac (continent, location, date, population, new_vaccinations, RollingPeopleVaccinated)
 as
@@ -95,18 +96,17 @@ From PopvsVac
 DROP Table if exists #PercentPopulationVaccinated
 Create Table #PercentPopulationVaccinated
 (
-Continent nvarchar(255),
-Location nvarchar(255),
-Date datetime,
-Population numeric,
-New_vaccinations numeric,
+continent nvarchar(255),
+location nvarchar(255),
+date datetime,
+population numeric,
+new_vaccinations numeric,
 RollingPeopleVaccinated numeric
 )
 
 Insert into #PercentPopulationVaccinated
 Select dea.continent, dea.location, dea.date, dea.population, vac.new_vaccinations
-, SUM(CONVERT(int,vac.new_vaccinations)) OVER (Partition by dea.Location Order by dea.location, dea.Date) as RollingPeopleVaccinated
---, (RollingPeopleVaccinated/population)*100
+, SUM(CONVERT(int,vac.new_vaccinations)) OVER (Partition by dea.location Order by dea.location, dea.Date) as RollingPeopleVaccinated
 From Portfolio..['Covid deaths$'] dea
 Join Portfolio..['Covid vac$'] vac
 	On dea.location = vac.location
@@ -114,5 +114,5 @@ Join Portfolio..['Covid vac$'] vac
 where dea.continent is not null 
 --order by 2,3
 
-Select *, (RollingPeopleVaccinated/Population)*100
+Select *, (RollingPeopleVaccinated/population)*100
 From #PercentPopulationVaccinated
